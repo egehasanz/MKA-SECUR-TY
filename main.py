@@ -19,6 +19,7 @@ async def on_ready():
     await bot.load_extension("cogs.moderation")
     await bot.load_extension("cogs.giveaway")
     await bot.load_extension("cogs.tickets")
+    await bot.load_extension("cogs.stats")
     await bot.load_extension("cogs.automod")
     try:
         synced = await bot.tree.sync()
