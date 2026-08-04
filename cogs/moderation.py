@@ -7,7 +7,7 @@ from datetime import timedelta
 GUILD_LOG_SETTINGS = {}
 WARNINGS_DB = {}
 
-OWNER_ID = 1507395734163689583  # Senin ID'n (Geliştirici / Ege)
+OWNER_ID = 1507395734163689583  # Ege
 
 AUTHORIZED_USERS = {}  
 AUTHORIZED_ROLES = {}  
@@ -88,7 +88,7 @@ class Moderation(commands.Cog):
         )
         await interaction.response.send_message(embed=embed, view=OwnerPanelView(), ephemeral=True)
 
-    @app_commands.command(name="logsayar", description="Genel moderasyon loglarının gönderileceği kanalı ayarlar.")
+    @app_commands.command(name="logsayar", description="Genel moderasyon ve sunucu loglarının gönderileceği kanalı ayarlar.")
     @app_commands.describe(kanal="Logların gönderileceği metin kanalı")
     @app_commands.checks.has_permissions(administrator=True)
     async def log_ayar(self, interaction: discord.Interaction, kanal: discord.TextChannel):
@@ -101,6 +101,112 @@ class Moderation(commands.Cog):
             channel = guild.get_channel(channel_id)
             if channel:
                 await channel.send(embed=embed)
+
+    # --- KAPSAMLI LOG DİNLEYİCİLERİ ---
+
+    @commands.Cog.listener()
+    async def on_message_delete(self, message):
+        if message.author.bot or not message.guild:
+            return
+        embed = discord.Embed(title="🗑️ Mesaj Silindi", color=discord.Color.red())
+        embed.add_field(name="Kanal", value=message.channel.mention, inline=False)
+        embed.add_field(name="Yazan", value=f"{message.author} ({message.author.id})", inline=False)
+        embed.add_field(name="Mesaj", value=message.content or "*İçerik yok (Görsel/Dosya olabilir)*", inline=False)
+        await self.send_log(message.guild, embed)
+
+    @commands.Cog.listener()
+    async def on_message_edit(self, before, after):
+        if before.author.bot or not before.guild or before.content == after.content:
+            return
+        embed = discord.Embed(title="✏️ Mesaj Düzenlendi", color=discord.Color.orange())
+        embed.add_field(name="Kanal", value=before.channel.mention, inline=False)
+        embed.add_field(name="Kullanıcı", value=f"{before.author} ({before.author.id})", inline=False)
+        embed.add_field(name="Eski Hâli", value=before.content or "*Boş*", inline=False)
+        embed.add_field(name="Yeni Hâli", value=after.content or "*Boş*", inline=False)
+        await self.send_log(before.guild, embed)
+
+    @commands.Cog.listener()
+    async def on_member_update(self, before, after):
+        guild = after.guild
+        # İsim Değişikliği
+        if before.nick != after.nick or before.name != after.name:
+            embed = discord.Embed(title="👤 Kullanıcı Bilgisi Değişti", color=discord.Color.blue())
+            embed.add_field(name="Kullanıcı", value=f"{after} ({after.id})", inline=False)
+            embed.add_field(name="Eski İsim", value=f"{before.display_name}", inline=True)
+            embed.add_field(name="Yeni İsim", value=f"{after.display_name}", inline=True)
+            await self.send_log(guild, embed)
+
+        # Rol Ekleme / Çıkarma
+        if before.roles != after.roles:
+            added_roles = [role for role in after.roles if role not in before.roles]
+            removed_roles = [role for role in before.roles if role not in after.roles]
+            
+            if added_roles:
+                embed = discord.Embed(title="➕ Kullanıcıya Rol Verildi", color=discord.Color.green())
+                embed.add_field(name="Kullanıcı", value=f"{after.mention} ({after.id})", inline=False)
+                embed.add_field(name="Verilen Rol(ler)", value=", ".join([r.name for r in added_roles]), inline=False)
+                await self.send_log(guild, embed)
+
+            if removed_roles:
+                embed = discord.Embed(title="➖ Kullanıcıdan Rol Alındı", color=discord.Color.dark_red())
+                embed.add_field(name="Kullanıcı", value=f"{after.mention} ({after.id})", inline=False)
+                embed.add_field(name="Alınan Rol(ler)", value=", ".join([r.name for r in removed_roles]), inline=False)
+                await self.send_log(guild, embed)
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member):
+        embed = discord.Embed(title="📥 Sunucuya Katıldı", color=discord.Color.green())
+        embed.add_field(name="Kullanıcı", value=f"{member} ({member.id})", inline=False)
+        await self.send_log(member.guild, embed)
+
+    @commands.Cog.listener()
+    async def on_member_remove(self, member):
+        embed = discord.Embed(title="📤 Sunucudan Ayrıldı", color=discord.Color.red())
+        embed.add_field(name="Kullanıcı", value=f"{member} ({member.id})", inline=False)
+        await self.send_log(member.guild, embed)
+
+    @commands.Cog.listener()
+    async def on_guild_channel_create(self, channel):
+        embed = discord.Embed(title="📁 Kanal Oluşturuldu", color=discord.Color.green())
+        embed.add_field(name="Kanal Adı", value=channel.name, inline=False)
+        await self.send_log(channel.guild, embed)
+
+    @commands.Cog.listener()
+    async def on_guild_channel_delete(self, channel):
+        embed = discord.Embed(title="🗑️ Kanal Silindi", color=discord.Color.red())
+        embed.add_field(name="Kanal Adı", value=channel.name, inline=False)
+        await self.send_log(channel.guild, embed)
+
+    @commands.Cog.listener()
+    async def on_guild_channel_update(self, before, after):
+        if before.overwrites != after.overwrites:
+            embed = discord.Embed(title="🔒 Kanal İzinleri Değiştirildi", color=discord.Color.orange())
+            embed.add_field(name="Kanal", value=after.mention, inline=False)
+            await self.send_log(after.guild, embed)
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member, before, after):
+        if member.bot:
+            return
+        guild = member.guild
+        if before.channel is None and after.channel is not None:
+            embed = discord.Embed(title="🔊 Ses Kanalına Katıldı", color=discord.Color.purple())
+            embed.add_field(name="Kullanıcı", value=f"{member} ({member.id})", inline=False)
+            embed.add_field(name="Kanal", value=after.channel.name, inline=False)
+            await self.send_log(guild, embed)
+        elif before.channel is not None and after.channel is None:
+            embed = discord.Embed(title="🔇 Ses Kanalından Ayrıldı", color=discord.Color.dark_purple())
+            embed.add_field(name="Kullanıcı", value=f"{member} ({member.id})", inline=False)
+            embed.add_field(name="Kanal", value=before.channel.name, inline=False)
+            await self.send_log(guild, embed)
+        elif before.channel != after.channel and before.channel is not None and after.channel is not None:
+            embed = discord.Embed(title="🔀 Ses Kanalı Değiştirdi", color=discord.Color.blue())
+            embed.add_field(name="Kullanıcı", value=f"{member} ({member.id})", inline=False)
+            embed.add_field(name="Eski Kanal", value=before.channel.name, inline=True)
+            embed.add_field(name="Yeni Kanal", value=after.channel.name, inline=True)
+            await self.send_log(guild, embed)
+
+    # --- MODERASYON KOMUTLARI ---
 
     @app_commands.command(name="temizle", description="Kanaldaki mesajları belirtilen miktarda veya tamamen temizler.")
     @app_commands.describe(miktar="Silinecek mesaj sayısı (1-100 arası) veya 'all' yazarak tamamını sil")
@@ -156,15 +262,9 @@ class Moderation(commands.Cog):
     @is_owner_or_authorized()
     async def dm(self, ctx, member: discord.Member, *, mesaj: str):
         await ctx.message.delete()
-
         try:
-            embed = discord.Embed(
-                title="Bot Bilgilendirme Mesajı",
-                description=mesaj,
-                color=discord.Color.blue()
-            )
+            embed = discord.Embed(title="Bot Bilgilendirme Mesajı", description=mesaj, color=discord.Color.blue())
             embed.set_footer(text=f"{ctx.guild.name} sunucusundan gönderildi.")
-            
             await member.send(embed=embed)
             await ctx.send(f"✅ **{member.display_name}** adlı kullanıcıya DM başarıyla gönderildi.", delete_after=5)
         except discord.Forbidden:
@@ -334,7 +434,7 @@ class Moderation(commands.Cog):
                 "`/ownerpanel` - Bot sahibi yetki yönetim paneli **(Sadece Owner)**\n"
                 "`/ticket` - Destek paneli gönderir *(Admin)*\n"
                 "`/temizle [sayı / all]` - Mesajları temizler *(Mesaj Yönetimi)*\n"
-                "`/logsayar #kanal` - Moderasyon log ayarlar *(Admin)*\n"
+                "`/logsayar #kanal` - Moderasyon/Sunucu log ayarlar *(Admin)*\n"
                 "`/ticketlogsayar #kanal` - Transkript log ayarlar *(Admin)*"
             ), 
             inline=False
