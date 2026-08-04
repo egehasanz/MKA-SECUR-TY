@@ -4,8 +4,52 @@ from discord import app_commands
 import io
 
 GUILD_TICKET_LOGS = {}
+ROLE_IDS_TO_PING = [1515087391487168592, 1515134844643053580]
 
-class TicketView(discord.ui.View):
+class TicketCreateView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None) # Butonun süresi hiç bitmez (kalıcı olur)
+
+    @discord.ui.button(label="Destek Talebi Oluştur", style=discord.ButtonStyle.success, custom_id="create_ticket_btn", emoji="🎫")
+    async def create_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        guild = interaction.guild
+        category_name = "Destek Talepleri"
+        
+        category = discord.utils.get(guild.categories, name=category_name)
+        if not category:
+            category = await guild.create_category(category_name)
+
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            interaction.user: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
+            guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True, manage_channels=True)
+        }
+
+        channel_name = f"ticket-{interaction.user.name.lower()}"
+        existing_channel = discord.utils.get(guild.text_channels, name=channel_name)
+        if existing_channel:
+            return await interaction.followup.send(f"Zaten açık bir destek kanalın var: {existing_channel.mention}", ephemeral=True)
+
+        ticket_channel = await guild.create_text_channel(
+            name=channel_name,
+            category=category,
+            overwrites=overwrites
+        )
+
+        embed = discord.Embed(
+            title="Destek Talebi Oluşturuldu",
+            description="Yetkililer en kısa sürede sizinle ilgilenecektir.\nTalebi sonlandırmak için aşağıdaki butonu kullanabilirsiniz.",
+            color=discord.Color.green()
+        )
+
+        roles_mention = " ".join([f"<@&{role_id}>" for role_id in ROLE_IDS_TO_PING])
+        ping_content = f"{interaction.user.mention} Hoş geldin! {roles_mention}"
+
+        await ticket_channel.send(content=ping_content, embed=embed, view=TicketCloseView())
+        await interaction.followup.send(f"Destek kanalınız oluşturuldu: {ticket_channel.mention}", ephemeral=True)
+
+class TicketCloseView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
@@ -16,10 +60,7 @@ class TicketView(discord.ui.View):
         guild = interaction.guild
 
         messages = [message async for message in channel.history(limit=None, oldest_first=True)]
-        
-        # Hatanın düzeldiği satır burada:
         transcript_content = f"--- TICKET TRANSKRİPTİ: {channel.name} ---\n\n"
-        
         for msg in messages:
             transcript_content += f"[{msg.created_at.strftime('%Y-%m-%d %H:%M:%S')}] {msg.author}: {msg.content}\n"
 
@@ -48,46 +89,23 @@ class Tickets(commands.Cog):
         GUILD_TICKET_LOGS[interaction.guild.id] = kanal.id
         await interaction.response.send_message(f"✅ Başarılı! Ticket transkript kanalı {kanal.mention} olarak ayarlandı.", ephemeral=True)
 
-    @app_commands.command(name="ticket", description="Yeni bir destek talebi (ticket) oluşturur.")
+    @app_commands.command(name="ticket", description="Destek talebi oluşturma panelini gönderir.")
+    @app_commands.checks.has_permissions(administrator=True)  # <-- Sadece Yöneticiler / Adminler kullanabilir!
     async def ticket(self, interaction: discord.Interaction):
-        guild = interaction.guild
-        category_name = "Destek Talepleri"
-        
-        category = discord.utils.get(guild.categories, name=category_name)
-        if not category:
-            category = await guild.create_category(category_name)
-
-        overwrites = {
-            guild.default_role: discord.PermissionOverwrite(view_channel=False),
-            interaction.user: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
-            guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True, manage_channels=True)
-        }
-
-        channel_name = f"ticket-{interaction.user.name.lower()}"
-        existing_channel = discord.utils.get(guild.text_channels, name=channel_name)
-        if existing_channel:
-            return await interaction.response.send_message(f"Zaten açık bir destek kanalın var: {existing_channel.mention}", ephemeral=True)
-
-        ticket_channel = await guild.create_text_channel(
-            name=channel_name,
-            category=category,
-            overwrites=overwrites
-        )
-
         embed = discord.Embed(
-            title="Destek Talebi Oluşturuldu",
-            description="Yetkililer en kısa sürede sizinle ilgilenecektir.\nTalebi sonlandırmak için aşağıdaki butonu kullanabilirsiniz.",
-            color=discord.Color.green()
+            title="🎫 Destek Sistemi",
+            description="Sunucumuzda bir sorun yaşarsanız veya yardıma ihtiyacınız olursa aşağıdaki **Destek Talebi Oluştur** butonuna tıklayarak özel kanal açabilirsiniz.",
+            color=discord.Color.blurple()
         )
-
-        await ticket_channel.send(content=f"{interaction.user.mention} Hoş geldin!", embed=embed, view=TicketView())
-        await interaction.response.send_message(f"Destek kanalınız oluşturuldu: {ticket_channel.mention}", ephemeral=True)
+        embed.set_footer(text="Destek Ekibi")
+        await interaction.channel.send(embed=embed, view=TicketCreateView())
+        await interaction.response.send_message("✅ Ticket paneli bu kanala başarıyla gönderildi.", ephemeral=True)
 
     @app_commands.command(name="help", description="Botun komut listesini gösterir.")
     async def help_command(self, interaction: discord.Interaction):
         embed = discord.Embed(title="📖 Python Bot Yardım Menüsü", color=discord.Color.blurple())
-        embed.add_field(name="Prefix Komutları (`.`)", value="`.uyar @kullanici [sebep]`\n`.sustur @kullanici [dakika] [sebep]`\n`.kick @kullanici [sebep]`\n`.ban @kullanici [sebep]`\n`.dm @kullanici [mesaj]` (Sadece Owner)", inline=False)
-        embed.add_field(name="Slash Komutları (`/`)", value="`/help` - Yardım menüsü\n`/ticket` - Destek talebi açar\n`/ownerpanel` - Yetki paneli\n`/logsayar #kanal` - Moderasyon log\n`/ticketlogsayar #kanal` - Transkript log", inline=False)
+        embed.add_field(name="Prefix Komutları (`.`)", value="`.uyar` | `.sustur` | `.kick` | `.ban` | `.dm` (Sadece Owner)", inline=False)
+        embed.add_field(name="Slash Komutları (`/`)", value="`/help` - Yardım menüsü\n`/ticket` - Ticket paneli gönderir (Admin)\n`/ownerpanel` - Yetki paneli\n`/logsayar #kanal` - Moderasyon log\n`/ticketlogsayar #kanal` - Transkript log", inline=False)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 async def setup(bot):
