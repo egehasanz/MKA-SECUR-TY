@@ -16,12 +16,12 @@ class TicketView(discord.ui.View):
         guild = interaction.guild
 
         messages = [message async for message in channel.history(limit=None, oldest_first=True)]
-        transcript_content = f"--- TICKET TRANSKRİPTİ: {channel.name} ---
-
-"
+        
+        # Hatanın düzeldiği satır burada:
+        transcript_content = f"--- TICKET TRANSKRİPTİ: {channel.name} ---\n\n"
+        
         for msg in messages:
-            transcript_content += f"[{msg.created_at.strftime('%Y-%m-%d %H:%M:%S')}] {msg.author}: {msg.content}
-"
+            transcript_content += f"[{msg.created_at.strftime('%Y-%m-%d %H:%M:%S')}] {msg.author}: {msg.content}\n"
 
         file = discord.File(io.BytesIO(transcript_content.encode('utf-8')), filename=f"{channel.name}-transkript.txt")
 
@@ -76,8 +76,7 @@ class Tickets(commands.Cog):
 
         embed = discord.Embed(
             title="Destek Talebi Oluşturuldu",
-            description="Yetkililer en kısa sürede sizinle ilgilenecektir.
-Talebi sonlandırmak için aşağıdaki butonu kullanabilirsiniz.",
+            description="Yetkililer en kısa sürede sizinle ilgilenecektir.\nTalebi sonlandırmak için aşağıdaki butonu kullanabilirsiniz.",
             color=discord.Color.green()
         )
 
@@ -87,15 +86,8 @@ Talebi sonlandırmak için aşağıdaki butonu kullanabilirsiniz.",
     @app_commands.command(name="help", description="Botun komut listesini gösterir.")
     async def help_command(self, interaction: discord.Interaction):
         embed = discord.Embed(title="📖 Python Bot Yardım Menüsü", color=discord.Color.blurple())
-        embed.add_field(name="Prefix Komutları (`.`)", value="`.uyar @kullanici [sebep]`
-`.sustur @kullanici [dakika] [sebep]`
-`.kick @kullanici [sebep]`
-`.ban @kullanici [sebep]`
-`.dm @kullanici [mesaj]` (Sadece Owner)", inline=False)
-        embed.add_field(name="Slash Komutları (`/`)", value="`/help` - Yardım menüsü
-`/ticket` - Destek talebi açar
-`/logsayar #kanal` - Moderasyon log kanalını ayarlar
-`/ticketlogsayar #kanal` - Ticket transkript kanalını ayarlar", inline=False)
+        embed.add_field(name="Prefix Komutları (`.`)", value="`.uyar @kullanici [sebep]`\n`.sustur @kullanici [dakika] [sebep]`\n`.kick @kullanici [sebep]`\n`.ban @kullanici [sebep]`\n`.dm @kullanici [mesaj]` (Sadece Owner)", inline=False)
+        embed.add_field(name="Slash Komutları (`/`)", value="`/help` - Yardım menüsü\n`/ticket` - Destek talebi açar\n`/ownerpanel` - Yetki paneli\n`/logsayar #kanal` - Moderasyon log\n`/ticketlogsayar #kanal` - Transkript log", inline=False)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 async def setup(bot):
