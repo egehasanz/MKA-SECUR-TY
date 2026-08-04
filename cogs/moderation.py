@@ -6,7 +6,6 @@ from datetime import timedelta
 
 GUILD_LOG_SETTINGS = {}
 
-# Doğrudan senin belirttiğin ID'yi bot sahibi olarak sabitliyoruz
 OWNER_ID = 1507395734163689583  
 
 AUTHORIZED_USERS = {}  
@@ -101,6 +100,33 @@ class Moderation(commands.Cog):
             channel = guild.get_channel(channel_id)
             if channel:
                 await channel.send(embed=embed)
+
+    @app_commands.command(name="temizle", description="Kanaldaki mesajları belirtilen miktarda veya tamamen temizler.")
+    @app_commands.describe(miktar="Silinecek mesaj sayısı (1-100 arası) veya 'all' yazarak tamamını sil")
+    @app_commands.checks.has_permissions(manage_messages=True)
+    async def temizle(self, interaction: discord.Interaction, miktar: str):
+        await interaction.response.defer(ephemeral=True)
+        channel = interaction.channel
+
+        if miktar.lower() == "all":
+            deleted_count = 0
+            # Discord API limiti gereği purge döngüyle tüm kanalı temizler
+            while True:
+                deleted = await channel.purge(limit=100)
+                if not deleted:
+                    break
+                deleted_count += len(deleted)
+            await interaction.followup.send(f"🧹 Kanal tamamen temizlendi! Toplam **{deleted_count}** mesaj silindi.", ephemeral=True)
+        else:
+            try:
+                limit_val = int(miktar)
+                if limit_val < 1 or limit_val > 100:
+                    return await interaction.followup.send("❌ Lütfen 1 ile 100 arasında bir sayı girin veya 'all' yazın.", ephemeral=True)
+                
+                deleted = await channel.purge(limit=limit_val)
+                await interaction.followup.send(f"🧹 Başarıyla **{len(deleted)}** mesaj silindi.", ephemeral=True)
+            except ValueError:
+                await.interaction.followup.send("❌ Geçersiz değer! Sayı girmeli veya 'all' yazmalısın.", ephemeral=True)
 
     @commands.command(name="kilit")
     @commands.has_permissions(manage_channels=True)
