@@ -21,21 +21,20 @@ class Stats(commands.Cog):
                 total_members = guild.member_count
                 bot_count = sum(1 for m in guild.members if m.bot)
                 human_count = total_members - bot_count
-
-                # Üye durumlarını (Çevrimiçi, Boşta vb.) hesapla
                 online_count = sum(1 for m in guild.members if m.status != discord.Status.offline and not m.bot)
 
-                # Sunucudaki ses kanallarını tarar ve isimlerine göre günceller
+                # Kanalları tek tek kontrol ederek tam eşleşme ile güncelle
                 for channel in guild.voice_channels:
-                    name_lower = channel.name.lower()
-                    if "toplam üye" in name_lower or "üye:" in name_lower:
+                    name = channel.name.lower()
+                    
+                    if "toplam üye" in name:
                         await channel.edit(name=f"👥 Toplam Üye: {total_members}")
-                    elif "aktif üye" in name_lower or "çevrimiçi" in name_lower:
+                    elif "aktif üye" in name:
                         await channel.edit(name=f"🟢 Aktif Üye: {online_count}")
-                    elif "gerçek üye" in name_lower or "üye sayısı" in name_lower:
-                        await channel.edit(name=f"👤 Üye: {human_count}")
-                    elif "bot sayısı" in name_lower or "bot:" in name_lower:
+                    elif "bot:" in name or name.startswith("bot"):
                         await channel.edit(name=f"🤖 Bot: {bot_count}")
+                    elif name.startswith("👤 üye") or name == "👤 üye":
+                        await channel.edit(name=f"👤 Üye: {human_count}")
             except Exception as e:
                 print(f"Sayaç güncelleme hatası ({guild.name}): {e}")
 
