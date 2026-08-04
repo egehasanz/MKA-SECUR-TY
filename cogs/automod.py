@@ -1,25 +1,19 @@
 import discord
 from discord.ext import commands
-from discord import app_commands
+import re
 
-# Kapsamlı Küfür, Argo, AAT ve Reklam Filtresi Listesi
+# Küfür, Argo, AAT ve Reklam Listesi
 FORBIDDEN_WORDS = [
-    # Senin özellikle istediğin kalıp
     "aat",
-    
-    # Küfür ve Argo Kalıpları
     "amk", "aq", "aq.", "amina", "amina koyim", "amına", "orospu", "orospucocugu", 
     "piç", "pic", "sik", "sikik", "sikerim", "siktir", "yarrak", "yersen", 
     "göt", "götveren", "kahpe", "yavşak", "ibne", "oç", "o.ç.", "ananın", 
     "amq", "siktim", "siktiğimin", "pezevenk", "amcik", "amçık",
-    
-    # Reklam ve Zararlı Bağlantı Kalıpları
     "discord.gg/", "discord.com/invite/", "http://", "https://", "www."
 ]
 
-# Belirttiğin Özel ID'ler
-AUTOMOD_LOG_CHANNEL_ID = 1534155785888600094  # Logların atılacağı kanal ID'si
-ROLE_TO_PING_ID = 1515087391487168592         # Yasaklı kelimede etiketlenecek rol/kullanıcı ID'si
+AUTOMOD_LOG_CHANNEL_ID = 1534155785888600094  # Log kanalı ID'si
+ROLE_TO_PING_ID = 1515087391487168592         # Etiketlenecek rol ID'si
 
 class AutoMod(commands.Cog):
     def __init__(self, bot):
@@ -27,36 +21,41 @@ class AutoMod(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        # Botların mesajlarını ve DM'leri yoksay
+        # Botları ve DM'leri yoksay
         if message.author.bot or not message.guild:
             return
 
-        # Yönetici yetkisine sahip olanlar filtreden muaftır
+        # Yöneticiler filtreden muaftır
         if message.author.guild_permissions.administrator:
             return
 
-        content_lower = message.content.lower()
+        content = message.content.lower()
+        
+        # Kelimeler arası boşlukları ve yabancı karakterleri sadeleştirerek arama yap
+        # Örn: "a a t", "a-a-t" gibi kaçışları da yakalamak için
+        clean_content = re.sub(r'[^a-z0-9ğüşıöç]', '', content)
+        
         triggered_word = None
-
-        # Yasaklı kelime / reklam kontrolü
         for word in FORBIDDEN_WORDS:
-            if word in content_lower:
+            # Hem normal metin içinde hem de sadeleştirilmiş metinde arar
+            clean_word = re.sub(r'[^a-z0-9ğüşıöç]', '', word)
+            if word in content or (clean_word and clean_word in clean_content):
                 triggered_word = word
                 break
 
         if triggered_word:
             try:
-                # 1. Kullanıcının mesajını anında sil
+                # 1. Mesajı anında sil
                 await message.delete()
 
-                # 2. Kanala uyarı mesajı gönder (Belirttiğin ID'yi etiketleyerek)
+                # 2. Kanala geçici uyarı at ve belirtilen ID'yi etiketle
                 warning_msg = await message.channel.send(
-                    f"⚠️ {message.author.mention}, bu sunucuda yasaklı kelime, argo veya izinsiz içerik (AAT dahil) paylaşmak yasaktır! "
-                    f"Yetkililer bilgilendirildi. (<@&{ROLE_TO_PING_ID}>)"
+                    f"⚠️ {message.author.mention}, bu sunucuda yasaklı kelime veya argo içerik (**{triggered_word}** dahil) kullanmak yasaktır! "
+                    f"(<@&{ROLE_TO_PING_ID}>)"
                 )
-                await warning_msg.delete(delay=5) # 5 saniye sonra uyarı mesajını temizler
+                await warning_msg.delete(delay=5)
 
-                # 3. Belirttiğin AutoMod log kanalına detaylı embed gönder
+                # 3. Belirttiğin AutoMod log kanalına log gönder
                 log_channel = message.guild.get_channel(AUTOMOD_LOG_CHANNEL_ID)
                 if log_channel:
                     embed = discord.Embed(
@@ -65,16 +64,16 @@ class AutoMod(commands.Cog):
                     )
                     embed.add_field(name="Kullanıcı", value=f"{message.author} (`{message.author.id}`)", inline=False)
                     embed.add_field(name="Kanal", value=message.channel.mention, inline=False)
-                    embed.add_field(name="Yakalanan Kelime/İçerik", value=f"`{triggered_word}`", inline=False)
-                    embed.add_field(name="Silinen Mesaj İçeriği", value=f"```{message.content}```", inline=False)
-                    embed.set_footer(text=f"AutoMod Sistemi • İlgili Yetkili Etiketi: <@&{ROLE_TO_PING_ID}>")
+                    embed.add_field(name="Yakalanan Kelime", value=f"`{triggered_word}`", inline=False)
+                    embed.add_field(name="Silinen Mesaj", value=f"```{message.content}```", inline=False)
+                    embed.set_footer(text=f"AutoMod Sistemi • Yetkili Etiketi: <@&{ROLE_TO_PING_ID}>")
                     
                     await log_channel.send(embed=embed)
 
             except discord.Forbidden:
                 pass
             except Exception as e:
-                print(f"AutoMod hata oluştu: {e}")
+                print(f"AutoMod Log Hatası: {e}")
 
 async def setup(bot):
     await bot.add_cog(AutoMod(bot))
