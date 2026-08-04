@@ -29,7 +29,7 @@ class OwnerPanelView(discord.ui.View):
 
     @discord.ui.select(
         cls=discord.ui.RoleSelect,
-        placeholder="Yetki verilecek rolleri seç...",
+        placeholder="Özel komutlar için yetki verilecek roller...",
         min_values=0,
         max_values=5,
         custom_id="select_roles"
@@ -50,7 +50,7 @@ class OwnerPanelView(discord.ui.View):
 
     @discord.ui.select(
         cls=discord.ui.UserSelect,
-        placeholder="Yetki verilecek kişileri seç...",
+        placeholder="Özel komutlar için yetki verilecek kişiler...",
         min_values=0,
         max_values=5,
         custom_id="select_users"
