@@ -8,7 +8,7 @@ ROLE_IDS_TO_PING = [1515087391487168592, 1515134844643053580]
 
 class TicketCreateView(discord.ui.View):
     def __init__(self):
-        super().__init__(timeout=None) # Butonun süresi hiç bitmez (kalıcı olur)
+        super().__init__(timeout=None)
 
     @discord.ui.button(label="Destek Talebi Oluştur", style=discord.ButtonStyle.success, custom_id="create_ticket_btn", emoji="🎫")
     async def create_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -54,7 +54,11 @@ class TicketCloseView(discord.ui.View):
         super().__init__(timeout=None)
 
     @discord.ui.button(label="Bileti Kapat", style=discord.ButtonStyle.danger, custom_id="close_ticket_btn", emoji="🔒")
-    async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def close_ticket(self.interaction: discord.Interaction, button: discord.ui.Button):
+        # Yetki kontrolü: Kullanıcıda kanal yönetme (manage_channels) veya yönetici yetkisi var mı?
+        if not interaction.user.guild_permissions.manage_channels:
+            return await interaction.response.send_message("❌ Bu bileti yalnızca yetkililer kapatabilir!", ephemeral=True)
+
         await interaction.response.defer(thinking=True, ephemeral=True)
         channel = interaction.channel
         guild = interaction.guild
@@ -90,7 +94,7 @@ class Tickets(commands.Cog):
         await interaction.response.send_message(f"✅ Başarılı! Ticket transkript kanalı {kanal.mention} olarak ayarlandı.", ephemeral=True)
 
     @app_commands.command(name="ticket", description="Destek talebi oluşturma panelini gönderir.")
-    @app_commands.checks.has_permissions(administrator=True)  # <-- Sadece Yöneticiler / Adminler kullanabilir!
+    @app_commands.checks.has_permissions(administrator=True)
     async def ticket(self, interaction: discord.Interaction):
         embed = discord.Embed(
             title="🎫 Destek Sistemi",
@@ -104,7 +108,7 @@ class Tickets(commands.Cog):
     @app_commands.command(name="help", description="Botun komut listesini gösterir.")
     async def help_command(self, interaction: discord.Interaction):
         embed = discord.Embed(title="📖 Python Bot Yardım Menüsü", color=discord.Color.blurple())
-        embed.add_field(name="Prefix Komutları (`.`)", value="`.uyar` | `.sustur` | `.kick` | `.ban` | `.dm` (Sadece Owner)", inline=False)
+        embed.add_field(name="Prefix Komutları (`.`)", value="`.uyar` | `.sustur` | `.kick` | `.ban` | `.kilit` | `.aç` | `.dm` (Sadece Owner)", inline=False)
         embed.add_field(name="Slash Komutları (`/`)", value="`/help` - Yardım menüsü\n`/ticket` - Ticket paneli gönderir (Admin)\n`/ownerpanel` - Yetki paneli\n`/logsayar #kanal` - Moderasyon log\n`/ticketlogsayar #kanal` - Transkript log", inline=False)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
