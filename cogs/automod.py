@@ -8,7 +8,7 @@ FORBIDDEN_WORDS = [
     "amk", "aq", "aq.", "amina", "amina koyim", "amına", "orospu", "orospucocugu", 
     "piç", "pic", "sik", "sikik", "sikerim", "siktir", "yarrak", "yersen", 
     "göt", "götveren", "kahpe", "yavşak", "ibne", "oç", "o.ç.", "ananın", 
-    "amq", "siktim", "siktiğimin", "pezevenk", "amcik", "amçık",
+    "amq", "siktim", "siktiğimin", "pezevenk", "amcik", "amçık", "porno", "sikiş",
     "discord.gg/", "discord.com/invite/", "http://", "https://", "www."
 ]
 
