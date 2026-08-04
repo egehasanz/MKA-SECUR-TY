@@ -54,8 +54,7 @@ class TicketCloseView(discord.ui.View):
         super().__init__(timeout=None)
 
     @discord.ui.button(label="Bileti Kapat", style=discord.ButtonStyle.danger, custom_id="close_ticket_btn", emoji="🔒")
-    async def close_ticket(self.interaction: discord.Interaction, button: discord.ui.Button):
-        # Yetki kontrolü: Kullanıcıda kanal yönetme (manage_channels) veya yönetici yetkisi var mı?
+    async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not interaction.user.guild_permissions.manage_channels:
             return await interaction.response.send_message("❌ Bu bileti yalnızca yetkililer kapatabilir!", ephemeral=True)
 
