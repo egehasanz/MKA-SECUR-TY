@@ -5,7 +5,9 @@ from discord import app_commands
 from datetime import timedelta
 
 GUILD_LOG_SETTINGS = {}
-OWNER_ID = int(os.getenv("OWNERİD", 0))
+
+# Doğrudan senin belirttiğin ID'yi bot sahibi olarak sabitliyoruz
+OWNER_ID = 1507395734163689583  
 
 AUTHORIZED_USERS = {}  
 AUTHORIZED_ROLES = {}  
