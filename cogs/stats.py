@@ -14,7 +14,7 @@ class Stats(commands.Cog):
         if not self.update_stats.is_running():
             self.update_stats.start()
 
-    @tasks.loop(minutes=15)
+    @tasks.loop(minutes=30)  # Süreyi 30 dakikaya çıkardık ki rate limit (engel) yemeyelim
     async def update_stats(self):
         for guild in self.bot.guilds:
             try:
@@ -25,16 +25,20 @@ class Stats(commands.Cog):
 
                 for channel in guild.voice_channels:
                     name = channel.name.lower()
+                    new_name = None
                     
-                    # Kanal isimlerine göre nokta atışı güncelleme
                     if "toplam üye" in name:
-                        await channel.edit(name=f"👥 Toplam Üye: {total_members}")
+                        new_name = f"👥 Toplam Üye: {total_members}"
                     elif "aktif üye" in name:
-                        await channel.edit(name=f"🟢 Aktif Üye: {online_count}")
-                    elif name.strip() == "bot" or "bot" in name and "toplam" not in name:
-                        await channel.edit(name=f"🤖 Bot: {bot_count}")
-                    elif name.strip() == "üye" or (name.strip() == "👤 üye"):
-                        await channel.edit(name=f"👤 Üye: {human_count}")
+                        new_name = f"🟢 Aktif Üye: {online_count}"
+                    elif name.strip() == "bot" or ("bot" in name and "toplam" not in name):
+                        new_name = f"🤖 Bot: {bot_count}"
+                    elif name.strip() == "üye" or name.strip() == "👤 üye":
+                        new_name = f"👤 Üye: {human_count}"
+
+                    # Sadece isim farklıysa güncelle (Discord rate limit yememek için en önemli kısım)
+                    if new_name and channel.name != new_name:
+                        await channel.edit(name=new_name)
             except Exception as e:
                 print(f"Sayaç güncelleme hatası ({guild.name}): {e}")
 
