@@ -17,6 +17,7 @@ bot = commands.Bot(command_prefix=".", intents=intents)
 async def on_ready():
     print(f"{bot.user.name} olarak giriş yapıldı!")
     await bot.load_extension("cogs.moderation")
+    await bot.load_extension("cogs.giveaway")
     await bot.load_extension("cogs.tickets")
     try:
         synced = await bot.tree.sync()
