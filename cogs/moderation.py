@@ -7,19 +7,16 @@ from datetime import timedelta
 GUILD_LOG_SETTINGS = {}
 OWNER_ID = int(os.getenv("OWNERİD", 0))
 
-# Yetki verilen ek kişi ve rol ID'lerini sunucu bazlı tutuyoruz
-AUTHORIZED_USERS = {}  # guild_id: set(user_ids)
-AUTHORIZED_ROLES = {}  # guild_id: set(role_ids)
+AUTHORIZED_USERS = {}  
+AUTHORIZED_ROLES = {}  
 
 def is_owner_or_authorized():
     async def predicate(ctx):
         if ctx.author.id == OWNER_ID:
             return True
         guild_id = ctx.guild.id
-        # Kullanıcı bazlı yetki kontrolü
         if ctx.author.id in AUTHORIZED_USERS.get(guild_id, set()):
             return True
-        # Rol bazlı yetki kontrolü
         user_roles = [role.id for role in ctx.author.roles]
         if any(role_id in AUTHORIZED_ROLES.get(guild_id, set()) for role_id in user_roles):
             return True
@@ -103,6 +100,30 @@ class Moderation(commands.Cog):
             if channel:
                 await channel.send(embed=embed)
 
+    @commands.command(name="kilit")
+    @commands.has_permissions(manage_channels=True)
+    async def kilit(self, ctx):
+        await ctx.message.delete()
+        overwrite = ctx.channel.overwrites_for(ctx.guild.default_role)
+        overwrite.send_messages = False
+        try:
+            await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=overwrite)
+            await ctx.send("🔒 Bu kanal **kilitlendi**.", delete_after=10)
+        except Exception as e:
+            await ctx.send(f"Kanal kilitlenirken bir hata oluştu: {e}", delete_after=5)
+
+    @commands.command(name="aç")
+    @commands.has_permissions(manage_channels=True)
+    async def ac(self, ctx):
+        await ctx.message.delete()
+        overwrite = ctx.channel.overwrites_for(ctx.guild.default_role)
+        overwrite.send_messages = True
+        try:
+            await ctx.channel.set_permissions(ctx.guild.default_role, overwrite=overwrite)
+            await ctx.send("🔓 Bu kanalın kilidi **açıldı**.", delete_after=10)
+        except Exception as e:
+            await ctx.send(f"Kanalın kilidi açılırken bir hata oluştu: {e}", delete_after=5)
+
     @commands.command(name="dm")
     @is_owner_or_authorized()
     async def dm(self, ctx, member: discord.Member, *, mesaj: str):
@@ -131,7 +152,7 @@ class Moderation(commands.Cog):
         
         embed = discord.Embed(title="Kullanıcı Uyarıldı", color=discord.Color.yellow())
         embed.add_field(name="Kullanıcı", value=f"{member} ({member.id})", inline=False)
-        embed.add_field(name="Yetki veren/Yetkili", value=ctx.author.mention, inline=False)
+        embed.add_field(name="Yetkili", value=ctx.author.mention, inline=False)
         embed.add_field(name="Sebep", value=sebep, inline=False)
         await self.send_log(ctx.guild, embed)
 
@@ -145,7 +166,7 @@ class Moderation(commands.Cog):
             await ctx.send(f"🔇 **{member.display_name}** {dakika} dakika süreyle susturuldu. **Sebep:** {sebep}")
             
             embed = discord.Embed(title="Kullanıcı Susturuldu (Timeout)", color=discord.Color.orange())
-            embed.add_field(name="Kullanıcı", value=f"{member} ({member.id})", inline=5)
+            embed.add_field(name="Kullanıcı", value=f"{member} ({member.id})", inline=False)
             embed.add_field(name="Süre", value=f"{dakika} dakika", inline=False)
             embed.add_field(name="Yetkili", value=ctx.author.mention, inline=False)
             embed.add_field(name="Sebep", value=sebep, inline=False)
