@@ -20,14 +20,12 @@ class TicketCreateView(discord.ui.View):
         if not category:
             category = await guild.create_category(category_name)
 
-        # Temel izinler (Herkese kapalı)
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(view_channel=False),
             interaction.user: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
             guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True, manage_channels=True)
         }
 
-        # Belirttiğin rol ID'lerine kanalı görme ve yazma izni otomatik ekleniyor
         for role_id in ROLE_IDS_TO_PING:
             role = guild.get_role(role_id)
             if role:
@@ -110,13 +108,6 @@ class Tickets(commands.Cog):
         embed.set_footer(text="Destek Ekibi")
         await interaction.channel.send(embed=embed, view=TicketCreateView())
         await interaction.response.send_message("✅ Ticket paneli bu kanala başarıyla gönderildi.", ephemeral=True)
-
-    @app_commands.command(name="help", description="Botun komut listesini gösterir.")
-    async def help_command(self, interaction: discord.Interaction):
-        embed = discord.Embed(title="📖 Python Bot Yardım Menüsü", color=discord.Color.blurple())
-        embed.add_field(name="Prefix Komutları (`.`)", value="`.uyar` | `.sustur` | `.kick` | `.ban` | `.kilit` | `.aç` | `.dm` (Sadece Owner)", inline=False)
-        embed.add_field(name="Slash Komutları (`/`)", value="`/help` - Yardım menüsü\n`/ticket` - Ticket paneli gönderir (Admin)\n`/ownerpanel` - Yetki paneli\n`/logsayar #kanal` - Moderasyon log\n`/ticketlogsayar #kanal` - Transkript log", inline=False)
-        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(Tickets(bot))
