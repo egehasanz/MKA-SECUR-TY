@@ -5,9 +5,9 @@ from discord import app_commands
 from datetime import timedelta
 
 GUILD_LOG_SETTINGS = {}
-WARNINGS_DB = {} # Kullanıcı uyarılarını saklamak için sözlük
+WARNINGS_DB = {}
 
-OWNER_ID = 1507395734163689583  
+OWNER_ID = 1507395734163689583  # Senin ID'n (Geliştirici / Ege)
 
 AUTHORIZED_USERS = {}  
 AUTHORIZED_ROLES = {}  
@@ -176,8 +176,9 @@ class Moderation(commands.Cog):
     @commands.has_permissions(kick_members=True)
     async def uyar(self, ctx, member: discord.Member, *, sebep: str = "Sebep belirtilmedi"):
         await ctx.message.delete()
+        if member.id == OWNER_ID:
+            return await ctx.send("❌ Geliştiricime (Ege) bu işlemi yapamam!", delete_after=5)
         
-        # Uyarıyı kaydet
         guild_id = ctx.guild.id
         if guild_id not in WARNINGS_DB:
             WARNINGS_DB[guild_id] = {}
@@ -214,6 +215,8 @@ class Moderation(commands.Cog):
     @commands.has_permissions(moderate_members=True)
     async def sustur(self, ctx, member: discord.Member, dakika: int, *, sebep: str = "Sebep belirtilmedi"):
         await ctx.message.delete()
+        if member.id == OWNER_ID:
+            return await ctx.send("❌ Geliştiricime (Ege) bu işlemi yapamam!", delete_after=5)
         try:
             duration = timedelta(minutes=dakika)
             await member.timeout(duration, reason=sebep)
@@ -232,6 +235,8 @@ class Moderation(commands.Cog):
     @commands.has_permissions(kick_members=True)
     async def kick(self, ctx, member: discord.Member, *, sebep: str = "Sebep belirtilmedi"):
         await ctx.message.delete()
+        if member.id == OWNER_ID:
+            return await ctx.send("❌ Geliştiricime (Ege) bu işlemi yapamam!", delete_after=5)
         try:
             await member.kick(reason=sebep)
             await ctx.send(f"👢 **{member.display_name}** sunucudan atıldı. **Sebep:** {sebep}")
@@ -248,6 +253,8 @@ class Moderation(commands.Cog):
     @commands.has_permissions(ban_members=True)
     async def ban(self, ctx, member: discord.Member, *, sebep: str = "Sebep belirtilmedi"):
         await ctx.message.delete()
+        if member.id == OWNER_ID:
+            return await ctx.send("❌ Geliştiricime (Ege) bu işlemi yapamam!", delete_after=5)
         try:
             await member.ban(reason=sebep)
             await ctx.send(f"🔨 **{member.display_name}** sunucudan yasaklandı. **Sebep:** {sebep}")
@@ -264,6 +271,8 @@ class Moderation(commands.Cog):
     @commands.has_permissions(ban_members=True)
     async def unban(self, ctx, user_id: int, *, sebep: str = "Sebep belirtilmedi"):
         await ctx.message.delete()
+        if user_id == OWNER_ID:
+            return await ctx.send("❌ Geliştiricime (Ege) bu işlemi yapamam!", delete_after=5)
         try:
             user = await self.bot.fetch_user(user_id)
             await ctx.guild.unban(user, reason=sebep)
@@ -275,7 +284,7 @@ class Moderation(commands.Cog):
             embed.add_field(name="Sebep", value=sebep, inline=False)
             await self.send_log(ctx.guild, embed)
         except Exception as e:
-            await ctx.send(f"Unban başarısız (ID'yi doğru yazdığınızdan emin olun): {e}", delete_after=5)
+            await ctx.send(f"Unban başarısız: {e}", delete_after=5)
 
     @commands.command(name="bansorgu")
     @commands.has_permissions(ban_members=True)
