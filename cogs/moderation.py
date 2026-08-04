@@ -7,9 +7,87 @@ from datetime import timedelta
 GUILD_LOG_SETTINGS = {}
 OWNER_ID = int(os.getenv("OWNERİD", 0))
 
+# Yetki verilen ek kişi ve rol ID'lerini sunucu bazlı tutuyoruz
+AUTHORIZED_USERS = {}  # guild_id: set(user_ids)
+AUTHORIZED_ROLES = {}  # guild_id: set(role_ids)
+
+def is_owner_or_authorized():
+    async def predicate(ctx):
+        if ctx.author.id == OWNER_ID:
+            return True
+        guild_id = ctx.guild.id
+        # Kullanıcı bazlı yetki kontrolü
+        if ctx.author.id in AUTHORIZED_USERS.get(guild_id, set()):
+            return True
+        # Rol bazlı yetki kontrolü
+        user_roles = [role.id for role in ctx.author.roles]
+        if any(role_id in AUTHORIZED_ROLES.get(guild_id, set()) for role_id in user_roles):
+            return True
+        return False
+    return commands.check(predicate)
+
+class OwnerPanelView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=180)
+
+    @discord.ui.select(
+        cls=discord.ui.RoleSelect,
+        placeholder="Yetki verilecek rolleri seç...",
+        min_values=0,
+        max_values=5,
+        custom_id="select_roles"
+    )
+    async def select_roles(self, interaction: discord.Interaction, select: discord.ui.RoleSelect):
+        if interaction.user.id != OWNER_ID:
+            return await interaction.response.send_message("Bu paneli sadece bot sahibi kullanabilir!", ephemeral=True)
+        
+        guild_id = interaction.guild.id
+        if guild_id not in AUTHORIZED_ROLES:
+            AUTHORIZED_ROLES[guild_id] = set()
+        
+        selected_role_ids = [role.id for role in select.values]
+        AUTHORIZED_ROLES[guild_id] = set(selected_role_ids)
+        
+        roles_str = ", ".join([role.mention for role in select.values]) if select.values else "Hiçbiri"
+        await interaction.response.send_message(f"✅ Yetkili roller güncellendi: {roles_str}", ephemeral=True)
+
+    @discord.ui.select(
+        cls=discord.ui.UserSelect,
+        placeholder="Yetki verilecek kişileri seç...",
+        min_values=0,
+        max_values=5,
+        custom_id="select_users"
+    )
+    async def select_users(self, interaction: discord.Interaction, select: discord.ui.UserSelect):
+        if interaction.user.id != OWNER_ID:
+            return await interaction.response.send_message("Bu paneli sadece bot sahibi kullanabilir!", ephemeral=True)
+        
+        guild_id = interaction.guild.id
+        if guild_id not in AUTHORIZED_USERS:
+            AUTHORIZED_USERS[guild_id] = set()
+        
+        selected_user_ids = [user.id for user in select.values]
+        AUTHORIZED_USERS[guild_id] = set(selected_user_ids)
+        
+        users_str = ", ".join([user.mention for user in select.values]) if select.values else "Hiçbiri"
+        await interaction.response.send_message(f"✅ Yetkili kişiler güncellendi: {users_str}", ephemeral=True)
+
+
 class Moderation(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+
+    @app_commands.command(name="ownerpanel", description="Bot sahibine özel yetki yönetim panelini açar.")
+    async def owner_panel(self, interaction: discord.Interaction):
+        if interaction.user.id != OWNER_ID:
+            return await interaction.response.send_message("Bu komutu yalnızca botun sahibi kullanabilir.", ephemeral=True)
+
+        embed = discord.Embed(
+            title="👑 Bot Yetki Yönetim Paneli",
+            description="Aşağıdaki menüleri kullanarak bot üzerindeki özel komutlara (örneğin `.dm`) erişebilecek **rolleri** ve **kişileri** seçebilirsin.",
+            color=discord.Color.gold()
+        )
+        await interaction.response.send_message(embed=embed, view=OwnerPanelView(), ephemeral=True)
 
     @app_commands.command(name="logsayar", description="Genel moderasyon loglarının gönderileceği kanalı ayarlar.")
     @app_commands.describe(kanal="Logların gönderileceği metin kanalı")
@@ -26,11 +104,9 @@ class Moderation(commands.Cog):
                 await channel.send(embed=embed)
 
     @commands.command(name="dm")
+    @is_owner_or_authorized()
     async def dm(self, ctx, member: discord.Member, *, mesaj: str):
         await ctx.message.delete()
-        
-        if ctx.author.id != OWNER_ID:
-            return await ctx.send("Bu komutu yalnızca botun sahibi kullanabilir.", delete_after=5)
 
         try:
             embed = discord.Embed(
@@ -55,7 +131,7 @@ class Moderation(commands.Cog):
         
         embed = discord.Embed(title="Kullanıcı Uyarıldı", color=discord.Color.yellow())
         embed.add_field(name="Kullanıcı", value=f"{member} ({member.id})", inline=False)
-        embed.add_field(name="Yetkili", value=ctx.author.mention, inline=False)
+        embed.add_field(name="Yetki veren/Yetkili", value=ctx.author.mention, inline=False)
         embed.add_field(name="Sebep", value=sebep, inline=False)
         await self.send_log(ctx.guild, embed)
 
@@ -69,7 +145,7 @@ class Moderation(commands.Cog):
             await ctx.send(f"🔇 **{member.display_name}** {dakika} dakika süreyle susturuldu. **Sebep:** {sebep}")
             
             embed = discord.Embed(title="Kullanıcı Susturuldu (Timeout)", color=discord.Color.orange())
-            embed.add_field(name="Kullanıcı", value=f"{member} ({member.id})", inline=False)
+            embed.add_field(name="Kullanıcı", value=f"{member} ({member.id})", inline=5)
             embed.add_field(name="Süre", value=f"{dakika} dakika", inline=False)
             embed.add_field(name="Yetkili", value=ctx.author.mention, inline=False)
             embed.add_field(name="Sebep", value=sebep, inline=False)
