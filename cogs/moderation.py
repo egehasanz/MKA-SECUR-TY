@@ -110,7 +110,6 @@ class Moderation(commands.Cog):
 
         if miktar.lower() == "all":
             deleted_count = 0
-            # Discord API limiti gereği purge döngüyle tüm kanalı temizler
             while True:
                 deleted = await channel.purge(limit=100)
                 if not deleted:
@@ -126,7 +125,7 @@ class Moderation(commands.Cog):
                 deleted = await channel.purge(limit=limit_val)
                 await interaction.followup.send(f"🧹 Başarıyla **{len(deleted)}** mesaj silindi.", ephemeral=True)
             except ValueError:
-                await.interaction.followup.send("❌ Geçersiz değer! Sayı girmeli veya 'all' yazmalısın.", ephemeral=True)
+                await interaction.followup.send("❌ Geçersiz değer! Sayı girmeli veya 'all' yazmalısın.", ephemeral=True)
 
     @commands.command(name="kilit")
     @commands.has_permissions(manage_channels=True)
