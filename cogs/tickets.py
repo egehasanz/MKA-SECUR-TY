@@ -20,11 +20,18 @@ class TicketCreateView(discord.ui.View):
         if not category:
             category = await guild.create_category(category_name)
 
+        # Temel izinler (Herkese kapalı)
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(view_channel=False),
             interaction.user: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
             guild.me: discord.PermissionOverwrite(view_channel=True, send_messages=True, manage_channels=True)
         }
+
+        # Belirttiğin rol ID'lerine kanalı görme ve yazma izni otomatik ekleniyor
+        for role_id in ROLE_IDS_TO_PING:
+            role = guild.get_role(role_id)
+            if role:
+                overwrites[role] = discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True)
 
         channel_name = f"ticket-{interaction.user.name.lower()}"
         existing_channel = discord.utils.get(guild.text_channels, name=channel_name)
